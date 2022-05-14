@@ -7,6 +7,8 @@ namespace Fusion.TrueType
     public class Font
     {
         public FontDirectoryTable FontDirectoryTable { get; set; }
+        public HeadTable HeadTable { get; set; }
+        public NameTable NameTable { get; set; }
         public CharacterMapTable CharacterMapTable { get; set; }
 
         public Font()

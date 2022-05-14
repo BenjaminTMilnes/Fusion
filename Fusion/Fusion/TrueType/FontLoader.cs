@@ -23,6 +23,12 @@ namespace Fusion.TrueType
                 offsetSubtable.EntrySelector = reader1.ReadUInt16BigEndian();
                 offsetSubtable.RangeShift = reader1.ReadUInt16BigEndian();
 
+                uint headTableOffset = 0;
+                uint headTableLength = 0;
+
+                uint nameTableOffset = 0;
+                uint nameTableLength = 0;
+
                 uint characterMapTableOffset = 0;
                 uint characterMapTableLength = 0;
 
@@ -37,6 +43,16 @@ namespace Fusion.TrueType
 
                     tableDirectorySubtable.Entries.Add(entry);
 
+                    if (entry.Tag == "head")
+                    {
+                        headTableOffset = entry.Offset;
+                        headTableLength = entry.Length;
+                    }
+                    if (entry.Tag == "name")
+                    {
+                        nameTableOffset = entry.Offset;
+                        nameTableLength = entry.Length;
+                    }
                     if (entry.Tag == "cmap")
                     {
                         characterMapTableOffset = entry.Offset;
@@ -48,6 +64,61 @@ namespace Fusion.TrueType
                 fontDirectoryTable.TableDirectorySubtable = tableDirectorySubtable;
 
                 font.FontDirectoryTable = fontDirectoryTable;
+
+                reader1.Seek(headTableOffset);
+
+                var headTable = new HeadTable();
+
+                headTable.Version = reader1.ReadFixed32BigEndian();
+                headTable.FontRevision = reader1.ReadFixed32BigEndian();
+                headTable.CheckSumAdjustment = reader1.ReadUInt32BigEndian();
+                headTable.MagicNumber = reader1.ReadUInt32BigEndian();
+                headTable.Flags = reader1.ReadUInt16BigEndian();
+                headTable.UnitsPerEm = reader1.ReadUInt16BigEndian();
+                headTable.DateCreated = reader1.ReadInt64BigEndian();
+                headTable.DateLastModified = reader1.ReadInt64BigEndian();
+                headTable.MinimumX = reader1.ReadInt16BigEndian();
+                headTable.MinimumY = reader1.ReadInt16BigEndian();
+                headTable.MaximumX = reader1.ReadInt16BigEndian();
+                headTable.MaximumY = reader1.ReadInt16BigEndian();
+                headTable.MacStyle = reader1.ReadUInt16BigEndian();
+                headTable.LowestRecommendedPPEM = reader1.ReadUInt16BigEndian();
+                headTable.FontDirectionHint = reader1.ReadInt16BigEndian();
+                headTable.IndexToLocFormat = reader1.ReadInt16BigEndian();
+                headTable.GlyphDataFormat = reader1.ReadInt16BigEndian();
+
+                font.HeadTable = headTable;
+
+                reader1.Seek(nameTableOffset);
+
+                var nameTable = new NameTable();
+
+                nameTable.Format = reader1.ReadUInt16BigEndian();
+                nameTable.Count = reader1.ReadUInt16BigEndian();
+                nameTable.StringOffset = reader1.ReadUInt16BigEndian();
+
+                for (var i = 0; i < nameTable.Count; i++)
+                {
+                    var nameRecord = new NameRecord();
+
+                    nameRecord.PlatformId = reader1.ReadUInt16BigEndian();
+                    nameRecord.PlatformSpecificId = reader1.ReadUInt16BigEndian();
+                    nameRecord.LanguageId = reader1.ReadUInt16BigEndian();
+                    nameRecord.NameId = reader1.ReadUInt16BigEndian();
+                    nameRecord.Length = reader1.ReadUInt16BigEndian();
+                    nameRecord.Offset = reader1.ReadUInt16BigEndian();
+
+                    nameTable.NameRecords.Add(nameRecord);
+                }
+
+                foreach(var nameRecord in nameTable.NameRecords)
+                {
+                    reader1.Seek(nameTableOffset + nameTable.StringOffset + nameRecord.Offset);
+
+                    nameRecord.Name = reader1.ReadASCII(nameRecord.Length);
+                }
+
+                font.NameTable = nameTable;
 
                 reader1.Seek(characterMapTableOffset);
 
