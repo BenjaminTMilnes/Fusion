@@ -1,12 +1,18 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Fusion.TrueType
 {
     public class FontLoader
     {
+        protected static bool IsBitSet(byte b, int position)
+        {
+            return (b & (1 << position)) != 0;
+        }
+
         public static Font LoadFont(string filePath)
         {
             var font = new Font();
@@ -329,16 +335,76 @@ namespace Fusion.TrueType
                         glyph.MaximumX = maximumX;
                         glyph.MaximumY = maximumY;
 
-                        for (var i = 0; i < numberOfContours; i++)
+                        if (numberOfContours > 0)
                         {
-                            glyph.EndPointsOfContours.Add(reader1.ReadUInt16BigEndian());
-                        }
+                            for (var i = 0; i < numberOfContours; i++)
+                            {
+                                glyph.EndPointsOfContours.Add(reader1.ReadUInt16BigEndian());
+                            }
 
-                        glyph.InstructionLength = reader1.ReadUInt16BigEndian();
+                            var numberOfPoints = glyph.EndPointsOfContours.Last();
 
-                        for (var j = 0; j < glyph.InstructionLength; j++)
-                        {
-                            glyph.Instructions.Add(reader1.ReadByte());
+                            glyph.InstructionLength = reader1.ReadUInt16BigEndian();
+
+                            for (var j = 0; j < glyph.InstructionLength; j++)
+                            {
+                                glyph.Instructions.Add(reader1.ReadByte());
+                            }
+
+                            var isRepeatCount = false;
+
+                            for (var j = 0; j < numberOfPoints; j++)
+                            {
+                                var data = reader1.ReadByte();
+
+                                if (isRepeatCount)
+                                {
+                                    var numberOfRepeats = data;
+
+                                    j += numberOfRepeats;
+
+                                    for (var k = 0; k < numberOfRepeats; k++)
+                                    {
+                                        glyph.Flags.Add(glyph.Flags.Last());
+                                    }
+
+                                    isRepeatCount = false;
+                                }
+                                else
+                                {
+                                    glyph.Flags.Add(data);
+
+                                    isRepeatCount = IsBitSet(data, 3);
+                                }
+                            }
+
+                            foreach (var flag in glyph.Flags)
+                            {
+                                var isShortVector = IsBitSet(flag, 1);
+
+                                if (isShortVector)
+                                {
+                                    glyph.XCoordinates.Add(reader1.ReadByte());
+                                }
+                                else
+                                {
+                                    glyph.XCoordinates.Add(reader1.ReadInt16BigEndian());
+                                }
+                            }
+
+                            foreach (var flag in glyph.Flags)
+                            {
+                                var isShortVector = IsBitSet(flag, 2);
+
+                                if (isShortVector)
+                                {
+                                    glyph.YCoordinates.Add(reader1.ReadByte());
+                                }
+                                else
+                                {
+                                    glyph.YCoordinates.Add(reader1.ReadInt16BigEndian());
+                                }
+                            }
                         }
 
                         glyphTable.Glyphs.Add(glyph);

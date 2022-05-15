@@ -15,16 +15,16 @@ namespace Fusion.TrueType
         public UInt16 InstructionLength { get; set; }
         public IList<byte> Instructions { get; set; }
         public IList<byte> Flags { get; set; }
-        public IList<Int16> XCoordinates { get; set; }
-        public IList<Int16> YCoordinates { get; set; }
+        public IList<object> XCoordinates { get; set; }
+        public IList<object> YCoordinates { get; set; }
 
         public SimpleGlyph()
         {
             EndPointsOfContours = new List<UInt16>();
             Instructions = new List<byte>();
             Flags = new List<byte>();
-            XCoordinates = new List<Int16>();
-            YCoordinates = new List<Int16>();
+            XCoordinates = new List<object>();
+            YCoordinates = new List<object>();
         }
     }
 }
