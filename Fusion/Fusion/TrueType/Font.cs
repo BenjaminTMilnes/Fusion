@@ -10,6 +10,11 @@ namespace Fusion.TrueType
         public HeadTable HeadTable { get; set; }
         public NameTable NameTable { get; set; }
         public CharacterMapTable CharacterMapTable { get; set; }
+        public HorizontalHeadTable HorizontalHeadTable { get; set; }
+        public HorizontalMetricsTable HorizontalMetricsTable { get; set; }
+        public MaximumParametersTable MaximumParametersTable { get; set; }
+        public LocationTable LocationTable { get; set; }
+        public GlyphTable GlyphTable { get; set; }
 
         public Font()
         {

@@ -32,6 +32,21 @@ namespace Fusion.TrueType
                 uint characterMapTableOffset = 0;
                 uint characterMapTableLength = 0;
 
+                uint horizontalHeadTableOffset = 0;
+                uint horizontalHeadTableLength = 0;
+
+                uint horizontalMetricsTableOffset = 0;
+                uint horizontalMetricsTableLength = 0;
+
+                uint maximumParametersTableOffset = 0;
+                uint maximumParametersTableLength = 0;
+
+                uint locationTableOffset = 0;
+                uint locationTableLength = 0;
+
+                uint glyphTableOffset = 0;
+                uint glyphTableLength = 0;
+
                 for (var i = 0; i < offsetSubtable.NumberOfTables; i++)
                 {
                     var entry = new TableDirectorySubtableEntry();
@@ -57,6 +72,31 @@ namespace Fusion.TrueType
                     {
                         characterMapTableOffset = entry.Offset;
                         characterMapTableLength = entry.Length;
+                    }
+                    if (entry.Tag == "hhea")
+                    {
+                        horizontalHeadTableOffset = entry.Offset;
+                        horizontalHeadTableLength = entry.Length;
+                    }
+                    if (entry.Tag == "hmtx")
+                    {
+                        horizontalMetricsTableOffset = entry.Offset;
+                        horizontalMetricsTableLength = entry.Length;
+                    }
+                    if (entry.Tag == "maxp")
+                    {
+                        maximumParametersTableOffset = entry.Offset;
+                        maximumParametersTableLength = entry.Length;
+                    }
+                    if (entry.Tag == "loca")
+                    {
+                        locationTableOffset = entry.Offset;
+                        locationTableLength = entry.Length;
+                    }
+                    if (entry.Tag == "glyf")
+                    {
+                        glyphTableOffset = entry.Offset;
+                        glyphTableLength = entry.Length;
                     }
                 }
 
@@ -111,7 +151,7 @@ namespace Fusion.TrueType
                     nameTable.NameRecords.Add(nameRecord);
                 }
 
-                foreach(var nameRecord in nameTable.NameRecords)
+                foreach (var nameRecord in nameTable.NameRecords)
                 {
                     reader1.Seek(nameTableOffset + nameTable.StringOffset + nameRecord.Offset);
 
@@ -191,6 +231,121 @@ namespace Fusion.TrueType
 
                     font.CharacterMapTable = characterMapTable;
                 }
+
+                reader1.Seek(horizontalHeadTableOffset);
+
+                var horizontalHeadTable = new HorizontalHeadTable();
+
+                horizontalHeadTable.Version = reader1.ReadFixed32BigEndian();
+                horizontalHeadTable.Ascent = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.Descent = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.LineGap = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.MaximumAdvanceWidth = reader1.ReadUInt16BigEndian();
+                horizontalHeadTable.MinimumLeftSideBearing = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.MinimumRightSideBearing = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.MaximumXExtent = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.CaretSlopeRise = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.CaretSlopeRun = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.CaretOffset = reader1.ReadInt16BigEndian();
+
+                reader1.ReadInt16BigEndian();
+                reader1.ReadInt16BigEndian();
+                reader1.ReadInt16BigEndian();
+                reader1.ReadInt16BigEndian();
+
+                horizontalHeadTable.MetricDataFormat = reader1.ReadInt16BigEndian();
+                horizontalHeadTable.NumberOfLongHorizontalMetrics = reader1.ReadUInt16BigEndian();
+
+                font.HorizontalHeadTable = horizontalHeadTable;
+
+                reader1.Seek(horizontalMetricsTableOffset);
+
+                var horizontalMetricsTable = new HorizontalMetricsTable();
+
+                for (var i = 0; i < horizontalHeadTable.NumberOfLongHorizontalMetrics; i++)
+                {
+                    horizontalMetricsTable.HorizontalMetrics.Add(reader1.ReadLongHorizontalMetricBigEndian());
+                }
+
+                font.HorizontalMetricsTable = horizontalMetricsTable;
+
+                reader1.Seek(maximumParametersTableOffset);
+
+                var maximumParametersTable = new MaximumParametersTable();
+
+                maximumParametersTable.Version = reader1.ReadFixed32BigEndian();
+                maximumParametersTable.NumberOfGlyphs = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfPoints = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfContours = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfComponentPoints = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfComponentContours = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfZones = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfTwilightPoints = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfStorageLocations = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfFunctionDefinitions = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfInstructionDefinitions = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfStackElements = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumSizeOfInstructions = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumNumberOfComponentElements = reader1.ReadUInt16BigEndian();
+                maximumParametersTable.MaximumComponentDepth = reader1.ReadUInt16BigEndian();
+
+                font.MaximumParametersTable = maximumParametersTable;
+
+                reader1.Seek(locationTableOffset);
+
+                if (font.HeadTable.IndexToLocFormat == 1)
+                {
+                    var locationTable = new LongLocationTable();
+
+                    for (var i = 0; i <= maximumParametersTable.NumberOfGlyphs; i++)
+                    {
+                        locationTable.Offsets.Add(reader1.ReadUInt32BigEndian());
+                    }
+
+                    font.LocationTable = locationTable;
+                }
+
+                reader1.Seek(glyphTableOffset);
+
+                var glyphTable = new GlyphTable();
+
+                foreach(var offset in (font.LocationTable as LongLocationTable).Offsets)
+                {
+                    reader1.Seek(glyphTableOffset + offset);
+
+                    var numberOfContours = reader1.ReadInt16BigEndian();
+                    var minimumX = reader1.ReadInt16BigEndian();
+                    var minimumY = reader1.ReadInt16BigEndian();
+                    var maximumX = reader1.ReadInt16BigEndian();
+                    var maximumY = reader1.ReadInt16BigEndian();
+
+                    if (numberOfContours >= 0)
+                    {
+                        var glyph = new SimpleGlyph();
+
+                        glyph.NumberOfContours = numberOfContours;
+                        glyph.MinimumX = minimumX;
+                        glyph.MinimumY = minimumY;
+                        glyph.MaximumX = maximumX;
+                        glyph.MaximumY = maximumY;
+
+                        for (var i = 0; i < numberOfContours; i++)
+                        {
+                            glyph.EndPointsOfContours.Add(reader1.ReadUInt16BigEndian());
+                        }
+
+                        glyph.InstructionLength = reader1.ReadUInt16BigEndian();
+
+                        for (var j = 0; j < glyph.InstructionLength; j++)
+                        {
+                            glyph.Instructions.Add(reader1.ReadByte());
+                        }
+
+                        glyphTable.Glyphs.Add(glyph);
+                    }
+                }
+
+                font.GlyphTable = glyphTable;
 
                 return font;
             }

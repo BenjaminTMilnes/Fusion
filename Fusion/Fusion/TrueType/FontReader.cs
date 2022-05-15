@@ -76,6 +76,16 @@ namespace Fusion.TrueType
             return fixed32;
         }
 
+        public LongHorizontalMetric ReadLongHorizontalMetricBigEndian()
+        {
+            var longHorizontalMetrix = new LongHorizontalMetric();
+
+            longHorizontalMetrix.AdvanceWidth = ReadUInt16BigEndian();
+            longHorizontalMetrix.LeftSideBearing = ReadInt16BigEndian();
+
+            return longHorizontalMetrix;
+        }
+
         public string ReadASCII(int length)
         {
             var bytes = ReadBytes(length);
