@@ -188,51 +188,105 @@ namespace Fusion.TrueType
                 {
                     if (encodingSubtable.PlatformId == 0 && encodingSubtable.PlatformSpecificId == 4)
                     {
-                        reader1.Seek(encodingSubtable.Offset);
+                        reader1.Seek(characterMapTableOffset + encodingSubtable.Offset);
 
                         var start = reader1.Position;
 
-                        var format4Table = new Format4CharacterMapSubtable();
+                        var format = reader1.ReadUInt16BigEndian();
 
-                        format4Table.Format = reader1.ReadUInt16BigEndian();
-                        format4Table.Length = reader1.ReadUInt16BigEndian();
-                        format4Table.Language = reader1.ReadUInt16BigEndian();
-                        format4Table.SegmentCount = (UInt16)(reader1.ReadUInt16BigEndian() / 2);
-                        format4Table.SearchRange = reader1.ReadUInt16BigEndian();
-                        format4Table.EntrySelector = reader1.ReadUInt16BigEndian();
-                        format4Table.RangeShift = reader1.ReadUInt16BigEndian();
-
-                        for (var i = 0; i < format4Table.SegmentCount; i++)
+                        if (format == 4)
                         {
-                            format4Table.EndCodes.Add(reader1.ReadUInt16BigEndian());
+                            var format4Table = new Format4CharacterMapSubtable();
+
+                            format4Table.Format = format;
+                            format4Table.Length = reader1.ReadUInt16BigEndian();
+                            format4Table.Language = reader1.ReadUInt16BigEndian();
+                            format4Table.SegmentCount = (UInt16)(reader1.ReadUInt16BigEndian() / 2);
+                            format4Table.SearchRange = reader1.ReadUInt16BigEndian();
+                            format4Table.EntrySelector = reader1.ReadUInt16BigEndian();
+                            format4Table.RangeShift = reader1.ReadUInt16BigEndian();
+
+                            for (var i = 0; i < format4Table.SegmentCount; i++)
+                            {
+                                format4Table.EndCodes.Add(reader1.ReadUInt16BigEndian());
+                            }
+
+                            format4Table.ReservedPad = reader1.ReadUInt16BigEndian();
+
+                            for (var i = 0; i < format4Table.SegmentCount; i++)
+                            {
+                                format4Table.StartCodes.Add(reader1.ReadUInt16BigEndian());
+                            }
+
+                            for (var i = 0; i < format4Table.SegmentCount; i++)
+                            {
+                                format4Table.IdDeltas.Add(reader1.ReadUInt16BigEndian());
+                            }
+
+                            for (var i = 0; i < format4Table.SegmentCount; i++)
+                            {
+                                format4Table.IdRangeOffsets.Add(reader1.ReadUInt16BigEndian());
+                            }
+
+                            var read = start - reader1.Position;
+                            var glyphCount = (format4Table.Length - read) / sizeof(ushort);
+
+                            for (var i = 0; i < glyphCount; i++)
+                            {
+                                format4Table.GlyphIndices.Add(reader1.ReadUInt16BigEndian());
+                            }
+
+                            for (var i = 0; i < format4Table.SegmentCount; i++)
+                            {
+                                var startCode = format4Table.StartCodes[i];
+                                var endCode = format4Table.EndCodes[i];
+
+                                for (var j = startCode; j <= endCode; j++)
+                                {
+                                    var characterCode = j;
+                                    var character = (char)j;
+
+                                    if ("abcdefghijklmnopqrstuvwxyz".Any(c => c == character))
+                                    {
+                                        format4Table.Mappings[character] = 0;
+                                    }
+                                }
+                            }
+
+                            characterMapTable.Subtables.Add(format4Table);
                         }
-
-                        format4Table.ReservedPad = reader1.ReadUInt16BigEndian();
-
-                        for (var i = 0; i < format4Table.SegmentCount; i++)
+                        else if (format == 12)
                         {
-                            format4Table.StartCodes.Add(reader1.ReadUInt16BigEndian());
+                            var format12Table = new Format12CharacterMapSubtable();
+
+                            format12Table.Format = format;
+
+                            reader1.ReadUInt16BigEndian();
+
+                            format12Table.Length = reader1.ReadUInt32BigEndian();
+                            format12Table.Language = reader1.ReadUInt32BigEndian();
+                            format12Table.NumberOfGroups = reader1.ReadUInt32BigEndian();
+
+                            for (var i = 0; i < format12Table.NumberOfGroups; i++)
+                            {
+                                var startCharacterCode = reader1.ReadUInt32BigEndian();
+                                var endCharacterCode = reader1.ReadUInt32BigEndian();
+                                var startGlyphCode = reader1.ReadUInt32BigEndian();
+
+                                var group = new Tuple<UInt32, UInt32, UInt32>(startCharacterCode, endCharacterCode, startGlyphCode);
+
+                                format12Table.Groups.Add(group);
+
+                                for (var j = startCharacterCode; j <= endCharacterCode; j++)
+                                {
+                                    var character = (char)j;
+
+                                    format12Table.Mappings[character] = (int)((j - startCharacterCode) + startGlyphCode);
+                                }
+                            }
+
+                            characterMapTable.Subtables.Add(format12Table);
                         }
-
-                        for (var i = 0; i < format4Table.SegmentCount; i++)
-                        {
-                            format4Table.IdDeltas.Add(reader1.ReadUInt16BigEndian());
-                        }
-
-                        for (var i = 0; i < format4Table.SegmentCount; i++)
-                        {
-                            format4Table.IdRangeOffsets.Add(reader1.ReadUInt16BigEndian());
-                        }
-
-                        var read = start - reader1.Position;
-                        var glyphCount = (format4Table.Length - read) / sizeof(ushort);
-
-                        for (var i = 0; i < glyphCount; i++)
-                        {
-                            format4Table.GlyphIndices.Add(reader1.ReadUInt16BigEndian());
-                        }
-
-                        characterMapTable.Subtables.Add(format4Table);
                     }
 
                     font.CharacterMapTable = characterMapTable;
@@ -315,7 +369,7 @@ namespace Fusion.TrueType
 
                 var glyphTable = new GlyphTable();
 
-                foreach(var offset in (font.LocationTable as LongLocationTable).Offsets)
+                foreach (var offset in (font.LocationTable as LongLocationTable).Offsets)
                 {
                     reader1.Seek(glyphTableOffset + offset);
 
@@ -342,7 +396,7 @@ namespace Fusion.TrueType
                                 glyph.EndPointsOfContours.Add(reader1.ReadUInt16BigEndian());
                             }
 
-                            var numberOfPoints = glyph.EndPointsOfContours.Last();
+                            var numberOfPoints = glyph.EndPointsOfContours.Last() + 1;
 
                             glyph.InstructionLength = reader1.ReadUInt16BigEndian();
 
@@ -361,7 +415,7 @@ namespace Fusion.TrueType
                                 {
                                     var numberOfRepeats = data;
 
-                                    j += numberOfRepeats;
+                                    j += numberOfRepeats - 1;
 
                                     for (var k = 0; k < numberOfRepeats; k++)
                                     {
@@ -405,7 +459,79 @@ namespace Fusion.TrueType
                                     glyph.YCoordinates.Add(reader1.ReadInt16BigEndian());
                                 }
                             }
+
+                            var contour = new Contour();
+
+                            var m = 0;
+
+                            var lastX = 0;
+                            var lastY = 0;
+
+                            for (var i = 0; i < glyph.Flags.Count(); i++)
+                            {
+                                var flag = glyph.Flags[i];
+                                var isOnCurve = IsBitSet(flag, 0);
+                                var xIsShort = IsBitSet(flag, 1);
+                                var yIsShort = IsBitSet(flag, 2);
+                                int x = Convert.ToInt32(glyph.XCoordinates[i]);
+                                int y = Convert.ToInt32(glyph.YCoordinates[i]);
+
+                                var point = new Point();
+
+                                if (xIsShort)
+                                {
+                                    var sign = (IsBitSet(flag, 4)) ? 1 : -1;
+
+                                    point.X = sign * x;
+                                }
+                                else
+                                {
+                                    var isDelta = (IsBitSet(flag, 4)) == false;
+
+                                    if (isDelta)
+                                    {
+                                        point.X = x + lastX;
+                                    }
+                                }
+
+                                if (yIsShort)
+                                {
+                                    var sign = (IsBitSet(flag, 5)) ? 1 : -1;
+
+                                    point.Y = sign * y;
+                                }
+                                else
+                                {
+                                    var isDelta = (IsBitSet(flag, 5)) == false;
+
+                                    if (isDelta)
+                                    {
+                                        point.Y = y + lastY;
+                                    }
+                                }
+
+                                lastX = point.X;
+                                lastY = point.Y;
+
+                                point.IsOnCurve = isOnCurve;
+
+                                contour.Points.Add(point);
+
+                                if (i == glyph.EndPointsOfContours[m])
+                                {
+                                    glyph.Contours.Add(contour);
+
+                                    contour = new Contour();
+                                    m++;
+                                }
+                            }
                         }
+
+                        glyphTable.Glyphs.Add(glyph);
+                    }
+                    else
+                    {
+                        var glyph = new CompoundGlyph();
 
                         glyphTable.Glyphs.Add(glyph);
                     }

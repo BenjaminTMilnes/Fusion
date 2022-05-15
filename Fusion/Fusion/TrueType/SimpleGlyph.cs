@@ -17,6 +17,7 @@ namespace Fusion.TrueType
         public IList<byte> Flags { get; set; }
         public IList<object> XCoordinates { get; set; }
         public IList<object> YCoordinates { get; set; }
+        public IList<Contour> Contours { get; set; }
 
         public SimpleGlyph()
         {
@@ -25,6 +26,7 @@ namespace Fusion.TrueType
             Flags = new List<byte>();
             XCoordinates = new List<object>();
             YCoordinates = new List<object>();
+            Contours = new List<Contour>();
         }
     }
 }

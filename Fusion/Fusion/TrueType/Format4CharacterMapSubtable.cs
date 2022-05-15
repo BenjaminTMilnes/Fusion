@@ -18,6 +18,7 @@ namespace Fusion.TrueType
         public IList<UInt16> IdDeltas { get; set; }
         public IList<UInt16> IdRangeOffsets { get; set; }
         public IList<UInt16> GlyphIndices { get; set; }
+        public IDictionary<char, int> Mappings { get; set; }
 
         public Format4CharacterMapSubtable()
         {
@@ -26,9 +27,10 @@ namespace Fusion.TrueType
             IdDeltas = new List<UInt16>();
             IdRangeOffsets = new List<UInt16>();
             GlyphIndices = new List<UInt16>();
+            Mappings = new Dictionary<char, int>();
         }
 
-        public UInt16 GetGlyphIndex(char c)
+        public override int GetGlyphIndex(char c)
         {
             var characterCode = (ushort)c;
 
@@ -47,7 +49,7 @@ namespace Fusion.TrueType
                         return (UInt16)((delta + c) % 65536);
                     }
 
-                    var index = rangeOffset + (c - start) + i;
+                    var index = rangeOffset / 2 + (c - start);
                     var glyphId = GlyphIndices[index];
 
                     if (glyphId != 0)
@@ -60,12 +62,7 @@ namespace Fusion.TrueType
             return 0;
         }
 
-        /// <summary>
-        /// Whether or not this subtable has a mapping for a given character.
-        /// </summary>
-        /// <param name="c"></param>
-        /// <returns></returns>
-        public bool HasGlyphForCharacter(char c)
+        public override bool HasGlyphForCharacter(char c)
         {
             return GetGlyphIndex(c) > 0;
         }

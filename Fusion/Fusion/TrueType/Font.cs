@@ -20,11 +20,26 @@ namespace Fusion.TrueType
         {
         }
 
+        public Glyph GetGlyphForCharacter(char c)
+        {
+            foreach (var subtable in CharacterMapTable.Subtables)
+            {
+                if (subtable.HasGlyphForCharacter(c))
+                {
+                    var index = subtable.GetGlyphIndex(c);
+
+                    return GlyphTable.Glyphs[index];
+                }
+            }
+
+            throw new Exception($"Font does not have glyph for '{c}'.");
+        }
+
         public bool HasGlyphForCharacter(char c)
         {
             foreach (var subtable in CharacterMapTable.Subtables)
             {
-                if ((subtable as Format4CharacterMapSubtable).HasGlyphForCharacter(c))
+                if (subtable.HasGlyphForCharacter(c))
                 {
                     return true;
                 }
